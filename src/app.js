@@ -14,6 +14,8 @@ configureServer(app);
 // Import routes
 const authRoutes = require('./routes/authRoutes');
 const peliculaRoutes = require('./routes/peliculaRoutes');
+const usuarioRoutes = require('./routes/usuarioRoutes');
+const clienteRoutes = require('./routes/clienteRoutes');
 const logMiddleware = require('./middlewares/logMiddleware');
 
 // Apply log middleware globally
@@ -22,6 +24,8 @@ app.use(logMiddleware);
 // API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/peliculas', peliculaRoutes);
+app.use('/api/usuarios', usuarioRoutes);
+app.use('/api/clientes', clienteRoutes);
 
 // 404 handler - must be after all routes
 app.use(notFoundHandler);
