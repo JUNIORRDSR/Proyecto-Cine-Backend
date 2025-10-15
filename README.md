@@ -135,6 +135,155 @@ Una vez iniciado el servidor, accede a la documentación interactiva Swagger en:
 http://localhost:3000/api-docs
 ```
 
+### 🔑 Autenticación
+
+#### POST `/api/auth/login`
+Login de usuario (Admin/Cajero)
+
+**Body:**
+```json
+{
+  "usuario": "admin",
+  "contrasena": "admin123"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "user": {
+      "id_usuario": 1,
+      "usuario": "admin",
+      "nombre": "Administrador",
+      "rol": "ADMIN"
+    }
+  }
+}
+```
+
+#### POST `/api/auth/register` (Solo Admin)
+Registrar nuevo usuario (Admin/Cajero)
+
+**Headers:**
+```
+Authorization: Bearer {token}
+```
+
+**Body:**
+```json
+{
+  "usuario": "cajero3",
+  "contrasena": "password123",
+  "nombre": "Cajero Tres",
+  "email": "cajero3@cine.com",
+  "rol": "CAJERO"
+}
+```
+
+#### GET `/api/auth/me`
+Obtener datos del usuario actual
+
+**Headers:**
+```
+Authorization: Bearer {token}
+```
+
+---
+
+### 🎬 Películas
+
+#### POST `/api/peliculas` (Solo Admin)
+Crear nueva película
+
+**Headers:**
+```
+Authorization: Bearer {token}
+```
+
+**Body:**
+```json
+{
+  "titulo": "Avatar: El camino del agua",
+  "descripcion": "Secuela de Avatar",
+  "duracion_minutos": 192,
+  "genero": "Ciencia Ficción",
+  "clasificacion": "PG-13",
+  "idioma": "Español",
+  "director": "James Cameron",
+  "reparto": "Sam Worthington, Zoe Saldana",
+  "fecha_estreno": "2022-12-16"
+}
+```
+
+#### GET `/api/peliculas`
+Listar películas (con filtro opcional)
+
+**Headers:**
+```
+Authorization: Bearer {token}
+```
+
+**Query Params:**
+- `estado` (opcional): `EN_CARTELERA` | `RETIRADA`
+
+**Ejemplos:**
+```bash
+GET /api/peliculas
+GET /api/peliculas?estado=EN_CARTELERA
+GET /api/peliculas?estado=RETIRADA
+```
+
+#### GET `/api/peliculas/:id`
+Obtener una película por ID
+
+**Headers:**
+```
+Authorization: Bearer {token}
+```
+
+#### PUT `/api/peliculas/:id` (Solo Admin)
+Actualizar película
+
+**Headers:**
+```
+Authorization: Bearer {token}
+```
+
+**Body (todos los campos opcionales):**
+```json
+{
+  "titulo": "Título actualizado",
+  "descripcion": "Nueva descripción",
+  "duracion_minutos": 140,
+  "estado": "RETIRADA"
+}
+```
+
+#### DELETE `/api/peliculas/:id` (Solo Admin)
+Eliminar película (soft delete - cambia estado a RETIRADA)
+
+**Headers:**
+```
+Authorization: Bearer {token}
+```
+
+---
+
+### 📊 Códigos de Estado HTTP
+
+| Código | Significado |
+|--------|-------------|
+| 200 | OK - Operación exitosa |
+| 201 | Created - Recurso creado exitosamente |
+| 400 | Bad Request - Datos inválidos o faltantes |
+| 401 | Unauthorized - No autenticado (token faltante/inválido) |
+| 403 | Forbidden - No autorizado (permisos insuficientes) |
+| 404 | Not Found - Recurso no encontrado |
+| 500 | Internal Server Error - Error del servidor |
+
 ## 🧪 Testing
 
 ### Ejecutar todos los tests
