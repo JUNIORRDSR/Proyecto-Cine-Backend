@@ -1,0 +1,2850 @@
+PLAN DE TRABAJO BACKEND - SISTEMA DE SALAS DE CINE
+1. ANÁLISIS INICIAL
+1.1 Resumen del Proyecto
+Sistema backend para control y administración de taquillas en salas de cine, que debe soportar dos modalidades:
+
+Presencial: Cliente interactúa con cajero en taquilla
+Online: Cliente realiza reservas/compras directamente desde web/móvil
+
+1.2 Requisitos Funcionales Identificados
+RF1 - Autenticación y Autorización
+
+Login para usuarios (Admin/Cajero)
+Gestión de sesiones con JWT
+Control de acceso basado en roles
+
+RF2 - Gestión de Usuarios y Clientes
+
+CRUD de cajeros (solo Admin)
+CRUD de clientes VIP
+Registro de clientes normales
+
+RF3 - Gestión de Películas y Funciones
+
+CRUD de películas (Admin)
+Gestión de horarios y funciones
+Control de cartelera
+
+RF4 - Sistema de Reservas y Ventas
+
+Selección de película, función y sillas
+Reservas con tiempo límite (debe confirmarse con compra)
+Ventas directas (irreversibles)
+Control de estado de sillas (libre/ocupada/reservada)
+
+RF5 - Sistema de Reportes
+
+Ventas por película
+Ventas por fecha/hora
+Ventas por cliente VIP
+Log de usuarios (acciones, duración, timestamps)
+
+RF6 - Generación de Tickets
+
+PDF con: silla, bloque, fecha, sala, costo, película
+
+RF7 - Módulo de IA (Chatbot)
+
+Recomendación de películas basada en historial
+Asistencia en compra de boletos
+Ayuda en selección de sillas/horarios
+
+1.3 Requisitos No Funcionales
+
+Seguridad: Contraseñas hasheadas (bcrypt), protección CORS
+Escalabilidad: Arquitectura modular, código reutilizable
+Performance: Optimización de consultas SQL, índices en BD
+Mantenibilidad: Código limpio, documentación, logs
+Testing: Cobertura mínima 80%
+
+1.4 Avances Existentes
+✅ Base de datos MySQL:
+
+Docker configurado (puerto 3306)
+9 tablas con relaciones definidas
+Variables de entorno: MYSQL_ROOT_PASSWORD=12345, MYSQL_DATABASE=salas_cine
+
+1.5 Gaps Identificados
+
+Falta lógica de negocio completa
+No hay API REST implementada
+Falta sistema de autenticación
+No hay validaciones de negocio (ej. tiempo límite reservas)
+Falta módulo de IA/Chatbot
+No hay sistema de generación de PDFs
+Falta gestión de descuentos
+
+
+2. ARQUITECTURA GENERAL
+2.1 Estructura de Carpetas
+cinema-backend/
+│
+├── src/
+│   ├── config/
+│   │   ├── database.js          # Configuración Sequelize/MySQL
+│   │   ├── server.js             # Configuración Express
+│   │   └── jwt.js                # Configuración JWT
+│   │
+│   ├── models/                   # Modelos Sequelize (mapeo tablas)
+│   │   ├── Usuario.js
+│   │   ├── Cliente.js
+│   │   ├── Sala.js
+│   │   ├── Pelicula.js
+│   │   ├── Funcion.js
+│   │   ├── Silla.js
+│   │   ├── Venta.js
+│   │   ├── DetalleVenta.js
+│   │   └── LogUsuario.js
+│   │
+│   ├── controllers/              # Lógica de controladores
+│   │   ├── authController.js
+│   │   ├── usuarioController.js
+│   │   ├── clienteController.js
+│   │   ├── peliculaController.js
+│   │   ├── funcionController.js
+│   │   ├── ventaController.js
+│   │   ├── reservaController.js
+│   │   ├── reporteController.js
+│   │   └── chatbotController.js
+│   │
+│   ├── services/                 # Lógica de negocio
+│   │   ├── authService.js
+│   │   ├── ventaService.js
+│   │   ├── reservaService.js
+│   │   ├── salaService.js
+│   │   ├── reporteService.js
+│   │   ├── pdfService.js
+│   │   ├── chatbotService.js
+│   │   └── descuentoService.js
+│   │
+│   ├── middlewares/
+│   │   ├── authMiddleware.js    # Verificación JWT
+│   │   ├── roleMiddleware.js    # Control roles (Admin/Cajero)
+│   │   ├── errorHandler.js      # Manejo global de errores
+│   │   ├── logMiddleware.js     # Log automático acciones
+│   │   └── validationMiddleware.js
+│   │
+│   ├── routes/
+│   │   ├── authRoutes.js
+│   │   ├── usuarioRoutes.js
+│   │   ├── clienteRoutes.js
+│   │   ├── peliculaRoutes.js
+│   │   ├── funcionRoutes.js
+│   │   ├── ventaRoutes.js
+│   │   ├── reservaRoutes.js
+│   │   ├── reporteRoutes.js
+│   │   └── chatbotRoutes.js
+│   │
+│   ├── validators/               # Esquemas de validación (Joi)
+│   │   ├── authValidator.js
+│   │   ├── peliculaValidator.js
+│   │   ├── ventaValidator.js
+│   │   └── ...
+│   │
+│   ├── utils/
+│   │   ├── logger.js            # Winston para logs
+│   │   ├── helpers.js
+│   │   └── constants.js
+│   │
+│   └── app.js                    # Punto de entrada principal
+│
+├── tests/
+│   ├── unit/                     # Pruebas unitarias
+│   ├── integration/              # Pruebas de integración
+│   └── e2e/                      # Pruebas end-to-end
+│
+├── .env                          # Variables de entorno
+├── .env.example
+├── .gitignore
+├── package.json
+├── jest.config.js
+├── .eslintrc.js
+└── README.md
+```
+
+### 2.2 Flujo de Datos
+```
+Cliente HTTP Request → Routes → Middlewares (Auth/Validation) 
+→ Controllers → Services (Lógica Negocio) → Models (Sequelize) 
+→ MySQL DB → Response
+
+3. PLAN DE TAREAS SECUENCIAL
+FASE 1: SETUP Y CONFIGURACIÓN INICIAL (Estimado: 6-8 horas)
+Tarea 1.1: Inicialización del Proyecto (1h)
+Descripción: Crear estructura base del proyecto
+Pasos:
+
+Crear carpeta cinema-backend e inicializar npm
+Instalar dependencias principales:
+
+bash   npm install express sequelize mysql2 dotenv bcryptjs jsonwebtoken cors helmet
+   npm install --save-dev jest supertest eslint nodemon
+```
+3. Crear estructura de carpetas según arquitectura
+4. Configurar `.gitignore` (node_modules, .env, logs)
+5. Crear `.env.example` con variables necesarias
+
+**Criterio de Éxito**:
+- `package.json` con scripts (`start`, `dev`, `test`)
+- Estructura de carpetas completa
+- Git inicializado
+
+---
+
+#### Tarea 1.2: Configuración de Base de Datos (2h)
+**Descripción**: Conectar backend a MySQL Docker
+**Pasos**:
+1. Crear `.env` con:
+```
+   DB_HOST=localhost
+   DB_PORT=3306
+   DB_NAME=salas_cine
+   DB_USER=root
+   DB_PASSWORD=12345
+   JWT_SECRET=<generar_secreto>
+   PORT=3000
+
+Implementar src/config/database.js con Sequelize:
+
+Configuración de conexión
+Pool de conexiones (max: 10, min: 2)
+Logging de queries (solo en desarrollo)
+
+
+Crear script src/utils/testConnection.js para verificar conexión
+
+Testing:
+
+Escribir test unitario: tests/unit/database.test.js
+
+Verificar conexión exitosa
+Manejar errores de conexión
+
+
+Ejecutar: npm test -- database.test.js
+
+Criterio de Éxito:
+
+Conexión a MySQL exitosa
+Test de conexión pasa correctamente
+Logs indican conexión establecida
+
+
+Tarea 1.3: Configuración de Express Server (2h)
+Descripción: Setup básico del servidor
+Pasos:
+
+Implementar src/config/server.js:
+
+Middlewares: express.json(), cors(), helmet()
+Manejo de rutas base
+
+
+Crear src/app.js:
+
+Importar configuraciones
+Inicializar servidor
+Manejo de puerto dinámico
+
+
+Implementar src/middlewares/errorHandler.js:
+
+Captura de errores globales
+Formato de respuesta consistente
+
+
+
+Testing:
+
+Test de integración: tests/integration/server.test.js
+
+Verificar servidor inicia correctamente
+Test endpoint básico (GET /health)
+
+
+Ejecutar con Supertest
+
+Criterio de Éxito:
+
+Servidor corre en localhost:3000
+Endpoint /health responde 200
+Tests pasan exitosamente
+
+
+Tarea 1.4: Configuración de ESLint y Logger (1h)
+Descripción: Herramientas de calidad de código
+Pasos:
+
+Configurar ESLint (.eslintrc.js) con reglas estándar
+Instalar Winston: npm install winston
+Implementar src/utils/logger.js:
+
+Logs a archivo (logs/error.log, logs/combined.log)
+Console en desarrollo
+
+
+Integrar logger en errorHandler.js
+
+Criterio de Éxito:
+
+ESLint ejecuta sin errores: npm run lint
+Logger registra errores correctamente
+
+
+FASE 2: MODELOS Y RELACIONES (Estimado: 8-10 horas)
+Tarea 2.1: Implementación de Modelos Sequelize (4h)
+Descripción: Mapear todas las tablas SQL a modelos Sequelize
+Pasos:
+
+Crear modelos para cada tabla:
+
+Usuario.js (id, nombre, usuario, contrasena, rol)
+Cliente.js (id, nombre, email, telefono, tipo)
+Sala.js (id, nombre, capacidad, tipo, estado)
+Pelicula.js (id, titulo, genero, duracion, clasificacion, estado)
+Funcion.js (id, id_pelicula, id_sala, fecha, hora, precio)
+Silla.js (id, id_sala, bloque, fila, numero, tipo)
+Venta.js (id, id_cliente, id_usuario, fecha_venta, total, estado)
+DetalleVenta.js (id, id_venta, id_funcion, id_silla, precio_unitario, estado_silla)
+LogUsuario.js (id, id_usuario, accion, fecha, duracion_segundos)
+
+
+Definir validaciones Sequelize:
+
+Validar ENUMs (rol, tipo, estado, bloque, fila)
+Unique constraints (usuario, email)
+NOT NULL según schema
+
+
+Configurar hooks:
+
+beforeCreate en Usuario: hashear contraseña con bcrypt
+beforeUpdate en Usuario: hashear si contraseña cambia
+
+
+
+Testing:
+
+Tests unitarios por modelo: tests/unit/models/*.test.js
+
+Crear instancia válida
+Validar campos requeridos
+Validar ENUMs incorrectos
+Verificar hash de contraseña (Usuario)
+
+
+Ejecutar suite completa: npm test -- models
+
+Criterio de Éxito:
+
+9 modelos creados y funcionales
+Validaciones implementadas
+Tests unitarios pasan (cobertura >80%)
+
+
+Tarea 2.2: Definición de Relaciones (2h)
+Descripción: Establecer asociaciones entre modelos
+Pasos:
+
+Crear src/models/index.js para centralizar relaciones:
+
+Funcion belongsTo Pelicula
+Funcion belongsTo Sala
+Silla belongsTo Sala
+Venta belongsTo Cliente
+Venta belongsTo Usuario
+DetalleVenta belongsTo Venta, Funcion, Silla
+LogUsuario belongsTo Usuario
+
+
+Configurar opciones:
+
+onUpdate: 'NO ACTION'
+onDelete: 'NO ACTION'
+Aliases para claridad (ej. as: 'pelicula')
+
+
+
+Testing:
+
+Test de integración: tests/integration/relations.test.js
+
+Crear Pelicula y Funcion asociada
+Verificar include de Sequelize funciona
+Test cascada (crear Venta con DetalleVenta)
+
+
+
+Criterio de Éxito:
+
+Relaciones definidas correctamente
+Queries con include funcionan
+Tests de relaciones pasan
+
+
+Tarea 2.3: Seeders para Datos Iniciales (2h)
+Descripción: Poblar BD con datos de prueba
+Pasos:
+
+Crear script src/seeders/initialData.js:
+
+3 Salas (Sala 1, 2, 3) con tipo 2D, estado ACTIVA
+260 Sillas por sala (2 bloques × 13 filas × 10 sillas)
+1 Usuario Admin (usuario: admin, contraseña: admin123)
+2 Cajeros
+5 Clientes (2 VIP, 3 NORMAL)
+3 Películas de ejemplo en cartelera
+
+
+Ejecutar seeder: npm run seed
+
+Testing:
+
+Verificar manualmente en MySQL:
+
+sql  SELECT COUNT(*) FROM Salas; -- 3
+  SELECT COUNT(*) FROM Sillas; -- 780 (260 × 3)
+Criterio de Éxito:
+
+BD poblada con datos iniciales
+Todas las salas tienen 260 sillas
+
+
+Tarea 2.4: Script de Inicialización de Sillas (2h)
+Descripción: Automatizar creación de estructura de sillas
+Pasos:
+
+Crear src/services/salaService.js:
+
+Método inicializarSalasSillas():
+
+Por cada sala, crear 260 sillas
+Bloques: B1, B2
+Filas: A-M
+Números: 1-10
+
+
+Método getSillasPorFuncion(id_funcion): retorna estado de sillas
+
+
+Agregar validación: no duplicar sillas si ya existen
+
+Testing:
+
+Test unitario: tests/unit/salaService.test.js
+
+Verificar generación correcta de sillas
+Validar no se duplican sillas
+
+
+
+Criterio de Éxito:
+
+Script genera 260 sillas por sala automáticamente
+Tests unitarios pasan
+
+
+FASE 3: AUTENTICACIÓN Y AUTORIZACIÓN (Estimado: 6-8 horas)
+Tarea 3.1: Sistema de Autenticación JWT (3h)
+Descripción: Implementar login y generación de tokens
+Pasos:
+
+Implementar src/services/authService.js:
+
+login(usuario, contrasena):
+
+Buscar usuario en BD
+Comparar contraseña con bcrypt
+Generar JWT con payload: {id, usuario, rol}
+Expiración: 8 horas
+
+
+register(datos): crear nuevo usuario (solo Admin puede registrar cajeros)
+
+
+Crear src/controllers/authController.js:
+
+POST /auth/login
+POST /auth/register
+GET /auth/me (retorna datos del usuario autenticado)
+
+
+Implementar src/config/jwt.js:
+
+Método generateToken(payload)
+Método verifyToken(token)
+
+
+
+Testing:
+
+Tests de integración: tests/integration/auth.test.js
+
+Login exitoso retorna token
+Login con credenciales incorrectas retorna 401
+Token válido permite acceso
+Token inválido retorna 403
+
+
+Ejecutar: npm test -- auth.test.js
+
+Criterio de Éxito:
+
+Login funciona correctamente
+JWT se genera y valida
+Tests de autenticación pasan
+
+
+Tarea 3.2: Middlewares de Autorización (2h)
+Descripción: Control de acceso basado en roles
+Pasos:
+
+Implementar src/middlewares/authMiddleware.js:
+
+Verificar token en header Authorization: Bearer <token>
+Decodificar JWT
+Adjuntar datos de usuario a req.user
+
+
+Implementar src/middlewares/roleMiddleware.js:
+
+isAdmin(): solo rol ADMIN
+isAdminOrCajero(): ADMIN o CAJERO
+Retornar 403 si no tiene permisos
+
+
+
+Testing:
+
+Tests unitarios: tests/unit/middlewares.test.js
+
+Mock de request/response
+Verificar autorización correcta por rol
+Verificar rechazo de tokens inválidos
+
+
+
+Criterio de Éxito:
+
+Middlewares protegen rutas correctamente
+Tests de autorización pasan
+
+
+Tarea 3.3: Sistema de Log de Usuarios (2h)
+Descripción: Registrar automáticamente acciones de usuarios
+Pasos:
+
+Implementar src/middlewares/logMiddleware.js:
+
+Capturar timestamp de inicio en cada request
+En response, calcular duración
+Guardar en tabla Log_Usuarios: acción (método + ruta), fecha, duración
+
+
+Integrar en rutas protegidas
+
+Testing:
+
+Test de integración: tests/integration/log.test.js
+
+Realizar login
+Ejecutar acción (ej. GET /peliculas)
+Verificar log creado en BD con duración correcta
+
+
+
+Criterio de Éxito:
+
+Logs se registran automáticamente
+Duración se calcula correctamente
+Tests pasan
+
+
+FASE 4: MÓDULO ADMINISTRATIVO (Estimado: 12-15 horas)
+Tarea 4.1: CRUD de Películas (3h)
+Descripción: Gestión completa de películas (solo Admin)
+Pasos:
+
+Implementar src/controllers/peliculaController.js:
+
+POST /peliculas - Crear película
+GET /peliculas - Listar (filtro por estado: EN_CARTELERA/RETIRADA)
+GET /peliculas/:id - Obtener una película
+PUT /peliculas/:id - Actualizar película
+DELETE /peliculas/:id - Eliminar (soft delete: cambiar estado a RETIRADA)
+
+
+Implementar src/validators/peliculaValidator.js:
+
+Validar campos requeridos (titulo, genero, duracion, clasificacion)
+Duración debe ser positiva
+
+
+Crear rutas en src/routes/peliculaRoutes.js:
+
+Proteger con authMiddleware + isAdmin
+
+
+
+Testing:
+
+Tests E2E: tests/e2e/peliculas.test.js
+
+Crear película (Admin) → 201
+Listar películas → 200 + array
+Actualizar película → 200
+Eliminar película → 200
+Intentar crear sin auth → 401
+Intentar crear como Cajero → 403
+
+
+Ejecutar suite: npm test -- peliculas.test.js
+
+Criterio de Éxito:
+
+CRUD completo funcional
+Solo Admin puede crear/actualizar/eliminar
+Validaciones funcionan
+Tests E2E pasan (100%)
+
+
+Tarea 4.2: CRUD de Usuarios (Cajeros) (3h)
+Descripción: Admin gestiona cajeros
+Pasos:
+
+Implementar src/controllers/usuarioController.js:
+
+POST /usuarios/cajeros - Crear cajero
+GET /usuarios/cajeros - Listar cajeros
+GET /usuarios/cajeros/:id - Obtener cajero
+PUT /usuarios/cajeros/:id - Actualizar cajero
+DELETE /usuarios/cajeros/:id - Eliminar cajero
+
+
+Validaciones:
+
+Usuario único
+Contraseña mínimo 6 caracteres
+Rol fijo: CAJERO
+
+
+Proteger rutas: solo Admin
+
+Testing:
+
+Tests E2E: tests/e2e/usuarios.test.js
+
+CRUD completo
+Validar usuario único
+Verificar contraseña hasheada en BD
+
+
+
+Criterio de Éxito:
+
+CRUD de cajeros funcional
+Validaciones correctas
+Tests pasan
+
+
+Tarea 4.3: CRUD de Clientes (3h)
+Descripción: Gestión de clientes normales y VIP
+Pasos:
+
+Implementar src/controllers/clienteController.js:
+
+POST /clientes - Crear cliente (cualquier rol)
+GET /clientes - Listar (filtro por tipo: NORMAL/VIP)
+GET /clientes/:id - Obtener cliente
+PUT /clientes/:id - Actualizar cliente
+DELETE /clientes/:id - Eliminar cliente
+
+
+Validaciones:
+
+Email único y formato válido
+Teléfono opcional pero válido
+
+
+Proteger rutas: Admin y Cajero pueden acceder
+
+Testing:
+
+Tests E2E: tests/e2e/clientes.test.js
+
+CRUD completo
+Filtrar por tipo VIP
+Validar email único
+
+
+
+Criterio de Éxito:
+
+CRUD de clientes funcional
+Tests pasan
+
+
+Tarea 4.4: Gestión de Funciones (3h)
+Descripción: Admin crea horarios de películas en salas
+Pasos:
+
+Implementar src/controllers/funcionController.js:
+
+POST /funciones - Crear función
+GET /funciones - Listar (filtros: fecha, sala, película)
+GET /funciones/:id - Obtener función con sillas disponibles
+PUT /funciones/:id - Actualizar función
+DELETE /funciones/:id - Eliminar función
+
+
+Validaciones:
+
+Fecha no puede ser pasada
+No puede haber 2 funciones en misma sala/fecha/hora
+Precio debe ser positivo
+
+
+Lógica adicional:
+
+Al obtener función, incluir sillas con estado (libre/ocupada/reservada)
+
+
+
+Testing:
+
+Tests E2E: tests/e2e/funciones.test.js
+
+Crear función válida
+Validar conflicto de horarios
+Obtener función con sillas disponibles
+
+
+
+Criterio de Éxito:
+
+Funciones se crean sin conflictos
+Disponibilidad de sillas se calcula correctamente
+Tests pasan
+
+
+FASE 5: SISTEMA DE RESERVAS Y VENTAS (Estimado: 15-18 horas)
+Tarea 5.1: Lógica de Negocio - Servicio de Reservas (4h)
+Descripción: Implementar lógica de reservas con tiempo límite
+Pasos:
+
+Implementar src/services/reservaService.js:
+
+crearReserva(id_cliente, id_funcion, sillas[]):
+
+Verificar sillas disponibles
+Crear Venta con estado RESERVADA
+Crear DetalleVenta con estado_silla RESERVADA
+Retornar ID de reserva y tiempo límite (ej. 15 minutos)
+
+
+confirmarReserva(id_reserva, metodo_pago):
+
+Verificar tiempo límite no expirado
+Cambiar estado Venta a PAGADA
+Cambiar estado_silla a OCUPADA
+Generar ticket PDF
+
+
+cancelarReserva(id_reserva):
+
+Eliminar Venta y DetalleVenta
+Liberar sillas
+
+
+verificarDisponibilidadSillas(id_funcion, sillas[]):
+
+Query para verificar si sillas están libres
+
+
+
+
+Constantes en src/utils/constants.js:
+
+TIEMPO_LIMITE_RESERVA = 15 * 60 * 1000 (15 min en ms)
+
+
+
+Testing:
+
+Tests unitarios: tests/unit/reservaService.test.js
+
+Crear reserva válida
+Verificar sillas se marcan como reservadas
+Confirmar reserva cambia estado a PAGADA
+Cancelar reserva libera sillas
+Rechazar confirmación si tiempo expirado
+
+
+Mock de BD con Jest
+
+Criterio de Éxito:
+
+Lógica de reservas implementada
+Tiempo límite funciona correctamente
+Tests unitarios pasan (>85% cobertura)
+
+
+Tarea 5.2: API de Reservas (3h)
+Descripción: Endpoints para reservas
+Pasos:
+
+Implementar src/controllers/reservaController.js:
+
+POST /reservas - Crear reserva
+
+Body: {id_cliente, id_funcion, sillas: [{bloque, fila, numero}]}
+Retorna: {id_reserva, total, tiempo_limite}
+
+
+POST /reservas/:id/confirmar - Confirmar reserva
+
+Body: {metodo_pago}
+Retorna: {ticket_url} (PDF generado)
+
+
+DELETE /reservas/:id - Cancelar reserva
+GET /reservas/cliente/:id_cliente - Historial de reservas de un cliente
+
+
+Validaciones con Joi:
+
+Sillas válidas (bloque: B1/B2, fila: A-M, numero: 1-10)
+Cliente existe
+Función existe
+
+
+Proteger rutas: Cliente autenticado o Cajero
+
+Testing:
+
+Tests E2E: tests/e2e/reservas.test.js
+
+Crear reserva exitosa
+Verificar sillas reservadas no disponibles para otra reserva
+Confirmar reserva dentro de tiempo límite
+Intentar confirmar después de expiración → 400
+Cancelar reserva libera sillas
+
+
+
+Criterio de Éxito:
+
+API de reservas funcional
+Validaciones correctas
+Tests E2E pasan
+
+
+Tarea 5.3: Lógica de Negocio - Servicio de Ventas Directas (3h)
+Descripción: Venta inmediata sin reserva previa
+Pasos:
+
+Implementar src/services/ventaService.js:
+
+realizarVenta(id_cliente, id_usuario, id_funcion, sillas[], descuentos):
+
+Verificar sillas disponibles
+Calcular total con descuentos
+Crear Venta con estado PAGADA
+Crear DetalleVenta con estado_silla OCUPADA
+Generar ticket PDF
+Retornar datos de venta y URL del ticket
+
+
+Lógica de cálculo:
+
+Precio base de función
+Aplicar descuentos (VIP, horario, día)
+
+
+
+
+
+Testing:
+
+Tests unitarios: tests/unit/ventaService.test.js
+
+Venta directa exitosa
+Cálculo correcto de total con descuentos
+Sillas se marcan como ocupadas inmediatamente
+Rechazar venta si sillas no disponibles
+
+
+
+Criterio de Éxito:
+
+Ventas directas funcionan
+Cálculos correctos
+Tests pasan
+
+
+Tarea 5.4: API de Ventas (2h)
+Descripción: Endpoints para ventas directas
+Pasos:
+
+Implementar src/controllers/ventaController.js:
+
+POST /ventas - Realizar venta directa
+
+Body: {id_cliente, id_funcion, sillas[], descuentos[]}
+Retorna: {id_venta, total, ticket_url}
+
+
+GET /ventas/:id - Obtener detalle de venta
+GET /ventas/cliente/:id_cliente - Historial de compras
+
+
+Proteger rutas: Cajero o Admin
+
+Testing:
+
+Tests E2E: tests/e2e/ventas.test.js
+
+Venta directa exitosa
+Verificar ticket generado
+Intentar vender sillas ocupadas → 400
+
+
+
+Criterio de Éxito:
+
+API de ventas funcional
+Tests pasan
+
+
+Tarea 5.5: Sistema de Descuentos (3h)
+Descripción: Aplicar descuentos dinámicos
+Pasos:
+
+Implementar src/services/descuentoService.js:
+
+calcularDescuentos(id_cliente, id_funcion, fecha_hora):
+
+Descuento VIP: 20% si cliente es VIP
+Descuento por horario: 15% antes de 3 PM
+Descuento por día: 10% martes/miércoles
+Retorna array de descuentos aplicables
+
+
+aplicarDescuentos(precio_base, descuentos[]):
+
+Suma todos los descuentos (máximo 40%)
+Retorna precio final
+
+
+
+
+
+Testing:
+
+Tests unitarios: tests/unit/descuentoService.test.js
+
+Calcular descuento VIP correctamente
+Descuento por horario funciona
+Máximo 40% de descuento total
+
+
+
+Criterio de Éxito:
+
+Sistema de descuentos implementado
+Tests pasan
+
+
+Tarea 5.6: Generación de Tickets PDF (3h)
+Descripción: Crear PDFs de tickets
+Pasos:
+
+Instalar librería: npm install pdfkit
+Implementar src/services/pdfService.js:
+
+generarTicket(datos_venta):
+
+Crear PDF con:
+
+Logo del cine (opcional)
+Título de película
+Fecha y hora de función
+Sala y número
+Sillas compradas (ej. B1-A5, B2-C3)
+Costo total
+Código QR o barcode (opcional, usar qrcode o similar)
+
+
+Guardar en carpeta public/tickets/
+Retornar ruta del PDF
+
+
+
+
+Ruta para descargar:
+
+GET /tickets/:filename - Servir PDF estático
+
+
+
+Testing:
+
+Tests de integración: tests/integration/pdf.test.js
+
+Generar ticket desde venta
+Verificar PDF existe en filesystem
+Validar contenido del PDF (básico)
+
+
+
+Criterio de Éxito:
+
+PDFs se generan correctamente
+Contenido del ticket es completo
+Tests pasan
+
+
+FASE 6: SISTEMA DE REPORTES (Estimado: 8-10 horas)
+Tarea 6.1: Reportes de Ventas (4h)
+Descripción: Consultas para reportes administrativos
+Pasos:
+
+Implementar src/services/reporteService.js:
+
+ventasPorPelicula(id_pelicula, fecha_inicio, fecha_fin):
+
+Query: sumar ventas por película
+Agrupar por fecha
+Retornar: total vendido, cantidad de boletas
+
+
+ventasPorFecha(fecha):
+
+Query: todas las ventas en una fecha
+Agrupar por función/hora
+
+
+ventasPorClienteVIP(id_cliente):
+
+Query: historial de compras de un cliente VIP
+Incluir descuentos aplicados
+
+
+consolidadoVentas(fecha_inicio, fecha_fin):
+
+Query: total de ventas en rango de fechas
+Desglose por sala, película, horario
+
+
+
+
+Implementar src/controllers/reporteController.js:
+
+GET /reportes/ventas/pelicula/:id (query: fecha_inicio, fecha_fin)
+GET /reportes/ventas/fecha/:fecha
+GET /reportes/ventas/cliente-vip/:id
+GET /reportes/consolidado (query: fecha_inicio, fecha_fin)
+
+
+Proteger rutas: solo Admin
+
+Testing:
+
+Tests E2E: tests/e2e/reportes.test.js
+
+Crear ventas de prueba
+Consultar reporte por película
+Validar totales correctos
+Consultar consolidado
+
+
+
+Criterio de Éxito:
+
+Reportes generan datos correctos
+Queries optimizadas (usar índices en fecha)
+Tests pasan
+
+
+Tarea 6.2: Reporte de Log de Usuarios (2h)
+Descripción: Consultar actividad de usuarios
+Pasos:
+
+Agregar a reporteService.js:
+
+logDeUsuarios(id_usuario, fecha_inicio, fecha_fin):
+
+Query: logs de un usuario en rango de fechas
+Incluir: acción, fecha, duración
+Ordenar por fecha DESC
+
+
+logGeneral(fecha):
+
+Query: todos los logs de un día
+Agrupar por usuario
+
+
+
+
+Controller:
+
+GET /reportes/logs/usuario/:id
+GET /reportes/logs/general (query: fecha)
+
+
+
+Testing:
+
+Tests E2E: tests/e2e/logs.test.js
+
+Realizar acciones como usuario
+Consultar logs
+Verificar duración registrada
+
+
+
+Criterio de Éxito:
+
+Logs consultables correctamente
+Tests pasan
+
+
+Tarea 6.3: Generación de Reportes en PDF (2h)
+Descripción: Exportar reportes a PDF
+Pasos:
+
+Agregar a pdfService.js:
+
+generarReportePDF(tipo, datos):
+
+Crear PDF con tablas
+Tipos: ventas_pelicula, consolidado, logs
+Incluir gráficos simples (opcional)
+
+
+
+
+Rutas adicionales:
+
+GET /reportes/ventas/pelicula/:id/pdf
+GET /reportes/consolidado/pdf
+
+
+
+Testing:
+
+Tests de integración: verificar PDFs se generan
+
+Criterio de Éxito:
+
+Reportes exportables a PDF
+Tests pasan
+
+
+FASE 7: MÓDULO DE IA - CHATBOT (Estimado: 12-15 horas)
+Tarea 7.1: Servicio de Recomendaciones (5h)
+Descripción: Algoritmo de recomendación de películas
+Pasos:
+
+Implementar src/services/chatbotService.js:
+
+obtenerHistorialCliente(id_cliente):
+
+Query: películas vistas por cliente
+Extraer géneros, clasificaciones preferidas
+
+
+recomendarPeliculas(id_cliente):
+
+Analizar historial
+Buscar películas en cartelera con géneros similares
+Priorizar horarios preferidos (si hay patrón)
+Retornar top 3 recomendaciones con justificación
+
+
+Lógica básica:
+
+Scoring por género (peso: 50%)
+Scoring por horario preferido (peso: 30%)
+Scoring por popularidad (ventas totales) (peso: 20%)
+
+
+
+
+Modelo de respuesta:
+
+json   {
+     "recomendaciones": [
+       {
+         "pelicula": {...},
+         "razon": "Te puede gustar porque viste películas de acción",
+         "funciones_disponibles": [...]
+       }
+     ]
+   }
+Testing:
+
+Tests unitarios: tests/unit/chatbotService.test.js
+
+Mock de historial de cliente
+Verificar recomendaciones según género
+Validar scoring
+
+
+
+Criterio de Éxito:
+
+Recomendaciones coherentes con historial
+Tests pasan
+
+
+Tarea 7.2: Procesamiento de Lenguaje Natural (NLP) Básico (4h)
+Descripción: Entender intenciones del cliente en chat
+Pasos:
+
+Instalar librería: npm install natural (NLP para Node.js)
+Agregar a chatbotService.js:
+
+procesarMensaje(mensaje, id_cliente):
+
+Detectar intención (intent):
+
+"recomendar" → llamar recomendarPeliculas()
+"comprar" → iniciar flujo de compra
+"horarios" → mostrar funciones disponibles
+"sillas" → mostrar disponibilidad de sala
+
+
+Extraer entidades (entity extraction):
+
+Nombres de películas
+Fechas (ej. "viernes", "hoy", "mañana")
+Horarios (ej. "7 PM", "noche")
+Cantidad de sillas (ej. "dos entradas")
+
+
+
+
+Usar regex y keywords para clasificación básica:
+
+
+
+js     const intentPatterns = {
+       recomendar: /recomendar|sugerir|qué ver|recomendación/i,
+       comprar: /comprar|boleto|entrada|ticket/i,
+       horarios: /horario|hora|función|cuándo/i,
+       sillas: /silla|asiento|disponibilidad|dónde sentar/i
+     }
+```
+
+3. Respuesta conversacional:
+   - Generar respuesta en texto natural según intención
+
+**Testing**:
+- Tests unitarios: `tests/unit/nlp.test.js`
+  - Detectar intención correctamente:
+    - "¿Qué me recomiendas?" → intent: recomendar
+    - "Quiero comprar 2 entradas para Misión Imposible" → intent: comprar, entidades: {pelicula: "Misión Imposible", cantidad: 2}
+  - Manejar mensajes ambiguos
+
+**Criterio de Éxito**:
+- Intenciones detectadas correctamente (>80% accuracy en tests)
+- Entidades extraídas correctamente
+- Tests pasan
+
+---
+
+#### Tarea 7.3: API del Chatbot (3h)
+**Descripción**: Endpoints para interactuar con chatbot
+**Pasos**:
+1. Implementar `src/controllers/chatbotController.js`:
+   
+   - POST `/chatbot/mensaje` - Enviar mensaje al chatbot
+     - Body: `{id_cliente, mensaje}`
+     - Retorna: `{respuesta, sugerencias}`
+   
+   - POST `/chatbot/recomendar` - Obtener recomendaciones directamente
+     - Body: `{id_cliente}`
+     - Retorna: `{recomendaciones}`
+   
+   - GET `/chatbot/funciones` - Listar funciones disponibles (para contexto)
+     - Query: fecha, genero
+   
+   - POST `/chatbot/carrito` - Agregar al carrito desde chat
+     - Body: `{id_cliente, id_funcion, sillas[]}`
+     - Retorna: `{carrito_id}`
+
+2. Flujo conversacional:
+```
+   Cliente: "Quiero dos entradas para Intensamente 2 a las 6"
+   Chatbot: "Perfecto. Hay sillas disponibles en la Fila D, ¿prefieres centro o costado?"
+   Cliente: "Centro"
+   Chatbot: "He reservado D5 y D6. ¿Confirmas la compra?"
+
+Mantener contexto de conversación:
+
+Usar sesiones en memoria (objeto global temporal)
+Guardar último estado de conversación por cliente
+
+
+
+Testing:
+
+Tests E2E: tests/e2e/chatbot.test.js
+
+Enviar mensaje de recomendación
+Verificar respuesta coherente
+Flujo completo: recomendar → seleccionar → comprar
+
+
+
+Criterio de Éxito:
+
+API del chatbot funcional
+Conversaciones fluidas
+Tests pasan
+
+
+FASE 8: OPTIMIZACIONES Y SEGURIDAD (Estimado: 6-8 horas)
+Tarea 8.1: Optimización de Queries SQL (3h)
+Descripción: Mejorar performance de consultas críticas
+Pasos:
+
+Identificar queries lentas:
+
+Reportes con rangos de fechas grandes
+Consulta de disponibilidad de sillas en funciones populares
+
+
+Crear índices en MySQL:
+
+sql   CREATE INDEX idx_ventas_fecha ON Ventas(fecha_venta);
+   CREATE INDEX idx_funciones_fecha ON Funciones(fecha);
+   CREATE INDEX idx_detalle_funcion ON Detalle_Venta(id_funcion);
+
+Optimizar queries Sequelize:
+
+Usar attributes para seleccionar solo campos necesarios
+Usar include con required: false para LEFT JOIN eficiente
+Implementar paginación: limit, offset
+
+
+Agregar caché básico:
+
+Instalar: npm install node-cache
+Cachear listado de películas en cartelera (TTL: 5 min)
+
+
+
+Testing:
+
+Tests de performance: tests/performance/queries.test.js
+
+Medir tiempo de query antes y después de índices
+Verificar mejora (target: <100ms para queries simples)
+
+
+
+Criterio de Éxito:
+
+Queries optimizadas (>50% mejora)
+Caché funciona correctamente
+Tests pasan
+
+
+Tarea 8.2: Validaciones y Manejo de Errores (2h)
+Descripción: Robustecer validaciones
+Pasos:
+
+Instalar: npm install joi
+Crear validators en src/validators/:
+
+Esquemas Joi para cada entidad
+Validar en middlewares antes de controllers
+
+
+Mejorar errorHandler.js:
+
+Clasificar errores:
+
+400: ValidationError
+401: AuthenticationError
+403: AuthorizationError
+404: NotFoundError
+500: ServerError
+
+
+Respuestas consistentes:
+
+
+
+json     {
+       "error": true,
+       "message": "Descripción del error",
+       "code": "ERROR_CODE"
+     }
+Testing:
+
+Tests de validación: tests/integration/validation.test.js
+
+Enviar datos inválidos a cada endpoint
+Verificar respuesta 400 con mensaje claro
+
+
+
+Criterio de Éxito:
+
+Todas las rutas tienen validación
+Errores manejados consistentemente
+Tests pasan
+
+
+Tarea 8.3: Seguridad Adicional (2h)
+Descripción: Implementar medidas de seguridad
+Pasos:
+
+Instalar: npm install express-rate-limit helmet
+Configurar rate limiting:
+
+Limitar login a 5 intentos por 15 min
+Limitar API general a 100 req/15min por IP
+
+
+Helmet configurado:
+
+Headers de seguridad HTTP
+
+
+Sanitización de inputs:
+
+Prevenir SQL injection (Sequelize lo hace por defecto)
+Prevenir XSS: npm install xss-clean
+
+
+HTTPS en producción (documentar en README)
+
+Testing:
+
+Tests de seguridad: tests/security/rateLimit.test.js
+
+Verificar rate limiting funciona
+Intentar SQL injection → debe fallar
+
+
+
+Criterio de Éxito:
+
+Rate limiting activo
+Headers de seguridad configurados
+Tests pasan
+
+
+FASE 9: TESTING INTEGRAL (Estimado: 8-10 horas)
+Tarea 9.1: Cobertura de Tests (4h)
+Descripción: Aumentar cobertura a >80%
+Pasos:
+
+Ejecutar: npm test -- --coverage
+Identificar módulos con baja cobertura
+Agregar tests faltantes:
+
+Tests unitarios para helpers
+Tests de edge cases (ej. reserva justo al límite de tiempo)
+
+
+
+Criterio de Éxito:
+
+Cobertura global >80%
+Todos los servicios críticos >90%
+
+
+Tarea 9.2: Tests End-to-End Completos (4h)
+Descripción: Simular flujos reales de usuario
+Pasos:
+
+Crear tests/e2e/flows.test.js:
+
+Flujo 1: Cliente VIP compra online
+
+Login como cliente
+Ver cartelera
+Chatbot recomienda película
+Reservar sillas
+Confirmar compra
+Descargar ticket
+
+
+Flujo 2: Cajero vende presencial
+
+Login como cajero
+Buscar función
+Seleccionar sillas
+Aplicar descuento VIP
+Generar venta
+Imprimir ticket
+
+
+Flujo 3: Admin genera reporte
+
+Login como admin
+Consultar ventas del día
+Exportar a PDF
+Consultar log de cajeros
+
+
+
+
+Usar Supertest para simular requests completas
+
+Criterio de Éxito:
+
+3 flujos E2E pasan sin errores
+Tiempo de ejecución <30 seg total
+
+
+FASE 10: DOCUMENTACIÓN Y DESPLIEGUE (Estimado: 6-8 horas)
+Tarea 10.1: Documentación de API (3h)
+Descripción: Documentar todos los endpoints
+Pasos:
+
+Instalar: npm install swagger-jsdoc swagger-ui-express
+Configurar Swagger en src/app.js:
+
+Ruta: /api-docs
+Documentar cada endpoint con comentarios JSDoc:
+
+
+
+js     /**
+      * @swagger
+      * /auth/login:
+      *   post:
+      *     summary: Login de usuario
+      *     parameters:RetryClaude does not have the ability to run the code it generates yet.JContinuejs     *     requestBody:
+     *       required: true
+     *       content:
+     *         application/json:
+     *           schema:
+     *             type: object
+     *             properties:
+     *               usuario:
+     *                 type: string
+     *               contrasena:
+     *                 type: string
+     *     responses:
+     *       200:
+     *         description: Login exitoso
+     *         content:
+     *           application/json:
+     *             schema:
+     *               type: object
+     *               properties:
+     *                 token:
+     *                   type: string
+     *                 usuario:
+     *                   type: object
+     */
+
+Documentar todos los endpoints con:
+
+Descripción
+Parámetros (path, query, body)
+Respuestas (success y error)
+Ejemplos de requests/responses
+
+
+
+Testing:
+
+Verificar manualmente: http://localhost:3000/api-docs
+Probar cada endpoint desde Swagger UI
+
+Criterio de Éxito:
+
+Documentación Swagger completa y accesible
+Todos los endpoints documentados
+Ejemplos funcionan desde Swagger UI
+
+
+Tarea 10.2: README y Guías de Uso (2h)
+Descripción: Documentación para desarrolladores
+Pasos:
+
+Crear README.md completo:
+
+markdown   # Sistema de Salas de Cine - Backend
+   
+   ## Descripción
+   API REST para gestión de taquillas en salas de cine.
+   
+   ## Tecnologías
+   - Node.js 18+
+   - Express.js 4.x
+   - MySQL 8.0
+   - Sequelize ORM
+   - JWT Authentication
+   - Jest + Supertest
+   
+   ## Requisitos Previos
+   - Node.js 18+
+   - Docker (para MySQL)
+   - npm o yarn
+   
+   ## Instalación
+   
+   ### 1. Clonar repositorio
+```bash
+   git clone 
+   cd cinema-backend
+```
+   
+   ### 2. Instalar dependencias
+```bash
+   npm install
+```
+   
+   ### 3. Configurar variables de entorno
+```bash
+   cp .env.example .env
+   # Editar .env con tus configuraciones
+```
+   
+   ### 4. Iniciar base de datos MySQL (Docker)
+```bash
+   docker build -t mysql-salas-cine .
+   docker run -d -p 3306:3306 --name mysql-cine mysql-salas-cine
+```
+   
+   ### 5. Ejecutar seeders (datos iniciales)
+```bash
+   npm run seed
+```
+   
+   ### 6. Iniciar servidor
+```bash
+   npm run dev  # Desarrollo
+   npm start    # Producción
+```
+   
+   ## Scripts Disponibles
+   - `npm start` - Inicia servidor en producción
+   - `npm run dev` - Inicia con nodemon (hot reload)
+   - `npm test` - Ejecuta suite de tests
+   - `npm run test:unit` - Solo tests unitarios
+   - `npm run test:e2e` - Solo tests E2E
+   - `npm run test:coverage` - Tests con cobertura
+   - `npm run lint` - Ejecuta ESLint
+   - `npm run seed` - Ejecuta seeders
+   
+   ## Estructura del Proyecto
+   [Incluir árbol de carpetas]
+   
+   ## Endpoints Principales
+   
+   ### Autenticación
+   - POST `/auth/login` - Login
+   - POST `/auth/register` - Registro (solo Admin)
+   - GET `/auth/me` - Usuario actual
+   
+   ### Películas
+   - GET `/peliculas` - Listar películas
+   - POST `/peliculas` - Crear película (Admin)
+   - PUT `/peliculas/:id` - Actualizar (Admin)
+   - DELETE `/peliculas/:id` - Eliminar (Admin)
+   
+   [Continuar con todos los endpoints...]
+   
+   ## Roles y Permisos
+   
+   ### ADMIN
+   - Todas las operaciones del sistema
+   - CRUD de películas, cajeros, clientes
+   - Acceso a reportes
+   - Gestión de funciones
+   
+   ### CAJERO
+   - Consultar cartelera
+   - Realizar ventas
+   - Gestionar reservas
+   - CRUD de clientes
+   
+   ### CLIENTE (vía app)
+   - Ver cartelera
+   - Reservar/comprar boletas
+   - Consultar historial
+   - Interactuar con chatbot
+   
+   ## Testing
+   
+   ### Ejecutar todos los tests
+```bash
+   npm test
+```
+   
+   ### Cobertura actual
+   - Global: >80%
+   - Servicios críticos: >90%
+   
+   ## Despliegue
+   [Instrucciones de despliegue - ver sección siguiente]
+   
+   ## Troubleshooting
+   
+   ### Error de conexión a MySQL
+   - Verificar que Docker container esté corriendo: `docker ps`
+   - Verificar credenciales en `.env`
+   
+   ### Tests fallan
+   - Limpiar base de datos de test
+   - Reinstalar dependencias: `npm ci`
+   
+   ## Contribuir
+   [Guidelines para contribuciones]
+   
+   ## Licencia
+   [Información de licencia]
+
+Crear CHANGELOG.md:
+
+Documentar versiones y cambios
+
+
+Crear guías adicionales en /docs:
+
+API_GUIDE.md - Guía de uso de API
+DEPLOYMENT.md - Guía de despliegue
+TESTING.md - Guía de testing
+DATABASE.md - Diccionario de datos
+
+
+
+Criterio de Éxito:
+
+README completo y claro
+Guías adicionales creadas
+Fácil para nuevo desarrollador comenzar
+
+
+Tarea 10.3: Configuración de Despliegue (2h)
+Descripción: Preparar para producción
+Pasos:
+
+Crear DEPLOYMENT.md:
+
+markdown   # Guía de Despliegue
+   
+   ## Opción 1: Railway/Render (Recomendado para MVP)
+   
+   ### Railway
+   1. Crear cuenta en railway.app
+   2. Conectar repositorio GitHub
+   3. Configurar variables de entorno:
+      - DB_HOST (usar Railway MySQL)
+      - DB_PORT=3306
+      - DB_NAME=salas_cine
+      - DB_USER=root
+      - DB_PASSWORD
+      - JWT_SECRET
+      - NODE_ENV=production
+   4. Deploy automático en cada push a main
+   
+   ### Render
+   1. Crear cuenta en render.com
+   2. Crear Web Service desde GitHub
+   3. Build Command: `npm install`
+   4. Start Command: `npm start`
+   5. Agregar variables de entorno
+   6. Agregar servicio MySQL (Render PostgreSQL o externo)
+   
+   ## Opción 2: Heroku
+   [Pasos para Heroku]
+   
+   ## Opción 3: VPS (DigitalOcean, AWS, etc)
+   
+   ### Requisitos
+   - Ubuntu 20.04+
+   - Node.js 18+
+   - MySQL 8.0
+   - Nginx (reverse proxy)
+   - PM2 (process manager)
+   
+   ### Pasos
+   1. Conectar por SSH
+   2. Instalar dependencias:
+```bash
+      curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+      sudo apt install nodejs mysql-server nginx
+      sudo npm install -g pm2
+```
+   
+   3. Configurar MySQL:
+```bash
+      sudo mysql_secure_installation
+      mysql -u root -p < sistema_de_salas.sql
+```
+   
+   4. Clonar proyecto:
+```bash
+      git clone 
+      cd cinema-backend
+      npm install --production
+```
+   
+   5. Configurar variables de entorno en `.env`
+   
+   6. Iniciar con PM2:
+```bash
+      pm2 start src/app.js --name cinema-api
+      pm2 startup
+      pm2 save
+```
+   
+   7. Configurar Nginx:
+```nginx
+      server {
+          listen 80;
+          server_name api.tudominio.com;
+          
+          location / {
+              proxy_pass http://localhost:3000;
+              proxy_http_version 1.1;
+              proxy_set_header Upgrade $http_upgrade;
+              proxy_set_header Connection 'upgrade';
+              proxy_set_header Host $host;
+              proxy_cache_bypass $http_upgrade;
+          }
+      }
+```
+   
+   8. SSL con Let's Encrypt:
+```bash
+      sudo apt install certbot python3-certbot-nginx
+      sudo certbot --nginx -d api.tudominio.com
+```
+   
+   ## Opción 4: Docker Compose (Para desarrollo/staging)
+   
+   Crear `docker-compose.yml`:
+```yaml
+   version: '3.8'
+   
+   services:
+     mysql:
+       build: .
+       ports:
+         - "3306:3306"
+       environment:
+         MYSQL_ROOT_PASSWORD: 12345
+         MYSQL_DATABASE: salas_cine
+       volumes:
+         - mysql_data:/var/lib/mysql
+     
+     api:
+       build: 
+         context: .
+         dockerfile: Dockerfile.api
+       ports:
+         - "3000:3000"
+       environment:
+         DB_HOST: mysql
+         DB_PORT: 3306
+         DB_NAME: salas_cine
+         DB_USER: root
+         DB_PASSWORD: 12345
+         JWT_SECRET: ${JWT_SECRET}
+       depends_on:
+         - mysql
+       volumes:
+         - ./src:/app/src
+         - ./public:/app/public
+   
+   volumes:
+     mysql_data:
+```
+   
+   Crear `Dockerfile.api`:
+```dockerfile
+   FROM node:18-alpine
+   
+   WORKDIR /app
+   
+   COPY package*.json ./
+   RUN npm ci --only=production
+   
+   COPY . .
+   
+   EXPOSE 3000
+   
+   CMD ["npm", "start"]
+```
+   
+   Ejecutar:
+```bash
+   docker-compose up -d
+```
+   
+   ## Verificación Post-Despliegue
+   
+   1. Health check: `curl https://api.tudominio.com/health`
+   2. Verificar logs: `pm2 logs cinema-api`
+   3. Ejecutar tests de humo (smoke tests)
+   4. Monitorear performance inicial
+   
+   ## Monitoreo y Logging
+   
+   ### PM2 Monitoring
+```bash
+   pm2 monit
+   pm2 logs
+```
+   
+   ### Logs en Producción
+   - Winston guardará logs en `/logs`
+   - Rotar logs diariamente
+   - Configurar alertas para errores críticos
+   
+   ### Herramientas recomendadas
+   - Sentry (error tracking)
+   - LogRocket (session replay)
+   - New Relic / DataDog (APM)
+   
+   ## Backup de Base de Datos
+   
+   ### Manual
+```bash
+   mysqldump -u root -p salas_cine > backup_$(date +%Y%m%d).sql
+```
+   
+   ### Automatizado (cron)
+```bash
+   # Backup diario a las 2 AM
+   0 2 * * * mysqldump -u root -p123456 salas_cine > /backups/salas_cine_$(date +\%Y\%m\%d).sql
+```
+   
+   ## Rollback
+   
+   Si algo falla en producción:
+```bash
+   pm2 stop cinema-api
+   git checkout 
+   npm install
+   pm2 restart cinema-api
+```
+
+Crear archivo de configuración para PM2:
+ecosystem.config.js:
+
+js   module.exports = {
+     apps: [{
+       name: 'cinema-api',
+       script: './src/app.js',
+       instances: 'max',
+       exec_mode: 'cluster',
+       env: {
+         NODE_ENV: 'production',
+         PORT: 3000
+       },
+       error_file: './logs/pm2-error.log',
+       out_file: './logs/pm2-out.log',
+       log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
+       merge_logs: true,
+       max_memory_restart: '500M'
+     }]
+   };
+Criterio de Éxito:
+
+Guía de despliegue completa
+Configuraciones de producción listas
+Múltiples opciones de deployment documentadas
+
+
+Tarea 10.4: Scripts de Utilidad (1h)
+Descripción: Crear scripts helper
+Pasos:
+
+Crear /scripts/reset-database.js:
+
+js   // Script para resetear BD en desarrollo
+   // Elimina todas las tablas y vuelve a ejecutar SQL inicial
+
+Crear /scripts/create-admin.js:
+
+js   // Script para crear usuario administrador inicial
+   // Uso: node scripts/create-admin.js --usuario admin --password admin123
+
+Crear /scripts/generate-test-data.js:
+
+js   // Script para generar datos de prueba masivos
+   // Útil para testing de performance
+
+Agregar scripts a package.json:
+
+json   "scripts": {
+     "reset-db": "node scripts/reset-database.js",
+     "create-admin": "node scripts/create-admin.js",
+     "generate-test-data": "node scripts/generate-test-data.js"
+   }
+Criterio de Éxito:
+
+Scripts funcionan correctamente
+Documentados en README
+
+
+FASE 11: TESTING FINAL Y ENTREGA (Estimado: 4-6 horas)
+Tarea 11.1: Testing Pre-Producción (3h)
+Descripción: Validación final completa
+Pasos:
+
+Tests de Regresión:
+
+Ejecutar suite completa: npm test
+Verificar cobertura: npm run test:coverage
+Target: 100% de tests pasando
+
+
+Tests de Performance:
+
+Crear tests/performance/load.test.js:
+
+
+
+js   // Usar artillery o similar para tests de carga
+   // Simular 100 usuarios concurrentes
+   // Verificar tiempos de respuesta <500ms para 95% de requests
+
+Tests de Seguridad:
+
+Ejecutar: npm audit
+Resolver vulnerabilidades críticas
+Verificar rate limiting funciona
+Test de SQL injection
+Test de XSS
+
+
+Tests Manuales:
+
+Usar Postman/Insomnia
+Probar cada endpoint manualmente
+Verificar validaciones
+Revisar logs
+
+
+
+Criterio de Éxito:
+
+Todos los tests automatizados pasan
+No hay vulnerabilidades críticas
+Performance aceptable (<500ms p95)
+Documentar cualquier bug menor conocido
+
+
+Tarea 11.2: Code Review y Refactoring (2h)
+Descripción: Revisión final de código
+Pasos:
+
+Ejecutar Linter:
+
+bash   npm run lint -- --fix
+
+Revisar Code Smells:
+
+Funciones muy largas (>50 líneas) → refactorizar
+Código duplicado → crear helpers
+Magic numbers → mover a constants
+Comentarios obsoletos → eliminar
+
+
+Optimizaciones finales:
+
+Remover console.logs innecesarios
+Verificar todos los TODOs resueltos
+Optimizar imports
+
+
+Documentar decisiones técnicas:
+
+Crear ARCHITECTURE.md:
+
+Por qué Sequelize vs otros ORMs
+Estructura de carpetas elegida
+Trade-offs de diseño
+
+
+
+
+
+Criterio de Éxito:
+
+Código limpio y consistente
+No warnings de ESLint
+Arquitectura documentada
+
+
+Tarea 11.3: Preparación de Entrega (1h)
+Descripción: Empaquetar proyecto para entrega
+Pasos:
+
+Verificar archivos requeridos:
+
+✅ Código fuente completo (/src)
+✅ Tests (/tests)
+✅ Dockerfile y docker-compose.yml
+✅ sistema_de_salas.sql
+✅ README.md
+✅ API_GUIDE.md
+✅ DEPLOYMENT.md
+✅ Diccionario de datos (DATABASE.md)
+✅ package.json con dependencias
+
+
+Crear diccionario de datos (DATABASE.md):
+
+markdown   # Diccionario de Datos
+   
+   ## Tabla: Usuarios
+   | Campo | Tipo | Restricciones | Descripción |
+   |-------|------|---------------|-------------|
+   | id_usuario | INTEGER | PK, AUTO_INCREMENT | Identificador único |
+   | nombre | VARCHAR(100) | NOT NULL | Nombre completo |
+   | usuario | VARCHAR(50) | NOT NULL, UNIQUE | Username para login |
+   | contrasena | VARCHAR(100) | NOT NULL | Password hasheado (bcrypt) |
+   | rol | ENUM('ADMIN','CAJERO') | NOT NULL | Rol del usuario |
+   | fecha_creacion | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | Fecha de creación |
+   
+   [Continuar con todas las tablas...]
+
+Crear video tutorial (requisito del proyecto):
+
+Preparar script de demostración:
+
+Inicio del servidor
+Login como Admin
+CRUD de películas
+Login como Cajero
+Proceso de venta
+Generación de reportes
+Interacción con chatbot
+Generación de tickets PDF
+
+
+Herramientas sugeridas: OBS Studio, Loom
+Duración: 10-15 minutos
+Subir a YouTube/Drive
+
+
+Crear archivo comprimido:
+
+bash   # Excluir node_modules y archivos innecesarios
+   zip -r cinema-backend.zip . -x "node_modules/*" "logs/*" ".git/*" ".env"
+Criterio de Éxito:
+
+Todos los archivos requeridos presentes
+Diccionario de datos completo
+Video tutorial grabado
+Proyecto comprimido y listo para entrega
+
+
+4. FASE DE TESTING INTEGRAL COMPLETA
+Resumen de Testing por Fase
+FaseTests UnitariosTests IntegraciónTests E2ECobertura TargetModelos✅ 9 archivos✅ Relaciones->85%Autenticación✅ JWT, bcrypt✅ Login flow✅ Flujo completo>90%CRUD Básicos✅ Servicios✅ APIs✅ Por módulo>80%Reservas/Ventas✅ Lógica negocio✅ APIs✅ Flujos completos>90%Reportes✅ Queries✅ Generación PDF->75%Chatbot✅ NLP, Recomendaciones✅ API✅ Conversación>80%GLOBAL>50 tests>30 tests>10 flujos>80%
+Ejecución de Tests
+bash# Suite completa
+npm test
+
+# Por categoría
+npm run test:unit
+npm run test:integration
+npm run test:e2e
+
+# Con cobertura
+npm run test:coverage
+
+# Watch mode (desarrollo)
+npm run test:watch
+
+# Específico
+npm test -- peliculas.test.js
+
+5. DESPLIEGUE Y MANTENIMIENTO
+5.1 Checklist Pre-Despliegue
+
+ Todos los tests pasan
+ Cobertura >80%
+ No hay vulnerabilidades críticas (npm audit)
+ Variables de entorno configuradas
+ Base de datos MySQL funcional
+ Documentación completa
+ Logs configurados
+ Rate limiting activo
+ CORS configurado correctamente
+ SSL/TLS en producción
+
+5.2 Deployment Recomendado (Railway)
+Paso 1: Preparar repositorio
+bashgit init
+git add .
+git commit -m "Initial commit - Cinema Backend"
+git remote add origin <github-url>
+git push -u origin main
+```
+
+**Paso 2**: Configurar Railway
+1. Crear proyecto en railway.app
+2. Conectar repositorio GitHub
+3. Agregar servicio MySQL:
+   - Railway MySQL plugin
+   - Importar `sistema_de_salas.sql`
+4. Configurar variables de entorno:
+```
+   DB_HOST=${{MySQL.MYSQL_HOST}}
+   DB_PORT=${{MySQL.MYSQL_PORT}}
+   DB_NAME=salas_cine
+   DB_USER=${{MySQL.MYSQL_USER}}
+   DB_PASSWORD=${{MySQL.MYSQL_PASSWORD}}
+   JWT_SECRET=<generar-aleatorio-seguro>
+   NODE_ENV=production
+   PORT=3000
+
+Deploy automático
+
+Paso 3: Verificación
+bashcurl https://<railway-url>/health
+# Respuesta esperada: {"status": "OK", "timestamp": "..."}
+5.3 Monitoreo Post-Despliegue
+Logs:
+
+Railway Dashboard → Service → Logs
+Filtrar por nivel: ERROR, WARN, INFO
+
+Métricas a monitorear:
+
+Tiempo de respuesta (target: p95 <500ms)
+Tasa de errores (target: <1%)
+Uso de memoria (target: <400MB)
+CPU (target: <70%)
+
+Alertas recomendadas:
+
+Error rate >5% en 5 minutos
+Response time p95 >1000ms
+MySQL conexiones >80% del pool
+
+5.4 Mantenimiento
+Tareas diarias:
+
+Revisar logs de errores
+Monitorear performance
+
+Tareas semanales:
+
+Backup de base de datos
+Revisar métricas de uso
+Actualizar dependencias (patch versions)
+
+Tareas mensuales:
+
+Actualizar dependencias (minor versions)
+Revisar y optimizar queries lentas
+Limpiar logs antiguos
+Revisión de seguridad
+
+
+6. RIESGOS Y CONTINGENCIAS
+Riesgo 1: Conexión a MySQL Docker falla
+Probabilidad: Media
+Impacto: Alto
+Mitigación:
+
+Verificar Docker container activo: docker ps
+Revisar logs: docker logs mysql-cine
+Verificar puerto 3306 no ocupado: netstat -an | grep 3306
+Reiniciar container: docker restart mysql-cine
+Plan B: Usar MySQL local instalado directamente
+
+
+Riesgo 2: Performance degradada con alta concurrencia
+Probabilidad: Media
+Impacto: Medio
+Mitigación:
+
+Implementar índices en BD desde Fase 8
+Usar caché para queries frecuentes
+Connection pooling configurado (max: 10)
+Rate limiting para prevenir abuso
+Plan B: Escalar horizontalmente (cluster mode PM2)
+
+
+Riesgo 3: Reservas expiran incorrectamente
+Probabilidad: Baja
+Impacto: Alto
+Mitigación:
+
+Tests exhaustivos de time limits
+Job scheduler (node-cron) para limpiar reservas expiradas
+Logs detallados de cada cambio de estado
+Plan B: Implementar cola de jobs (Bull + Redis)
+
+
+Riesgo 4: Chatbot NLP da recomendaciones irrelevantes
+Probabilidad: Media
+Impacto: Bajo
+Mitigación:
+
+Algoritmo fallback: mostrar películas populares si no hay historial
+Permitir feedback del usuario ("¿Fue útil esta recomendación?")
+Mejorar algoritmo iterativamente con datos reales
+Plan B: Simplificar a búsqueda por género sin IA
+
+
+Riesgo 5: Generación de PDFs falla en producción
+Probabilidad: Baja
+Impacto: Alto
+Mitigación:
+
+Tests de integración específicos para PDFs
+Manejo de errores robusto con retry logic
+Guardar datos de venta aunque PDF falle (puede regenerarse después)
+Plan B: Enviar ticket por email como HTML
+
+
+Riesgo 6: Vulnerabilidades de seguridad
+Probabilidad: Media
+Impacto: Crítico
+Mitigación:
+
+npm audit en CI/CD
+Dependabot/Renovate para actualizar deps automáticamente
+Rate limiting estricto
+Helmet configurado
+Input sanitization
+Plan B: Parchar vulnerabilidad crítica inmediatamente y redeploy
+
+
+7. TIMELINE ESTIMADO
+FaseTareasDuraciónDependenciasEntregableFase 1Setup inicial6-8hNingunaServidor corriendo + DB conectadaFase 2Modelos y relaciones8-10hFase 1Modelos Sequelize funcionalesFase 3Autenticación6-8hFase 2Sistema de login + JWTFase 4CRUD Admin12-15hFase 3APIs administrativas completasFase 5Reservas/Ventas15-18hFase 4Sistema de venta funcionalFase 6Reportes8-10hFase 5Reportes + PDFsFase 7Chatbot IA12-15hFase 5Chatbot con recomendacionesFase 8Optimización6-8hFase 7Performance mejoradoFase 9Testing integral8-10hFase 8Cobertura >80%Fase 10Documentación6-8hFase 9Docs completas + DeployFase 11Entrega final4-6hFase 10Proyecto empaquetadoTOTAL91-116hBackend 100% funcional
+Distribución Recomendada (3 cortes académicos)
+Primer Corte (Entrega: Semana 5):
+
+Fase 1: Setup
+Fase 2: Modelos
+Fase 3: Autenticación
+Entregables: Diseño de BD, maquetas (no backend), conexión funcional
+
+Segundo Corte (Entrega: Semana 10):
+
+Fase 4: CRUD Admin completo
+Parte de Fase 5: Reservas básicas
+Entregables: Módulo admin cajeros/clientes funcional
+
+Tercer Corte (Entrega: Semana 15):
+
+Completar Fase 5: Ventas completas
+Fase 6: Reportes
+Fase 7: Chatbot
+Fase 8-11: Optimización, testing, despliegue
+Entregables: Sistema completo + despliegue + video
+
+
+8. CRITERIOS DE ÉXITO GLOBALES
+Funcionales
+✅ Sistema permite 2 modalidades: presencial (cajero) y online (cliente)
+✅ Reservas con tiempo límite funcionan correctamente
+✅ Ventas son irreversibles (no se pueden cancelar)
+✅ Estructura de salas (260 sillas) se respeta
+✅ Roles (Admin/Cajero) con permisos correctos
+✅ CRUD completo de películas, cajeros, clientes
+✅ Sistema de reportes genera datos precisos
+✅ Tickets PDF con información completa
+✅ Chatbot da recomendaciones coherentes
+✅ Log de usuarios registra acciones correctamente
+No Funcionales
+✅ API REST bien estructurada (RESTful)
+✅ Código modular y mantenible (arquitectura en capas)
+✅ Tests con cobertura >80%
+✅ Performance: p95 <500ms para endpoints críticos
+✅ Seguridad: JWT, bcrypt, rate limiting, CORS
+✅ Documentación completa (Swagger + README)
+✅ Desplegado y accesible públicamente
+✅ Logs estructurados y consultables
+Evaluación (según documento)
+
+✅ Programación orientada a objetos (modelos, servicios, controllers)
+✅ Optimización (índices, caché, queries eficientes)
+✅ Análisis e implementación de BD (9 tablas relacionales, Sequelize)
+✅ Manejo de conectividad (MySQL Docker, error handling)
+✅ Testing exhaustivo (unit, integration, E2E)
+✅ Valores agregados: Chatbot IA, sistema de descuentos dinámicos, generación PDFs
+
+
+9. NOTAS IMPORTANTES PARA EL AGENTE DE PROGRAMACIÓN
+Prioridades
+
+Testing es obligatorio: No avanzar sin tests que validen cada funcionalidad
+Seguridad desde el inicio: Nunca guardar contraseñas en texto plano
+Modularidad: Separar lógica de negocio (services) de presentación (controllers)
+Error handling: Todos los endpoints deben manejar errores gracefully
+Logging: Registrar todas las operaciones críticas
+
+Buenas Prácticas
+
+Usar async/await en lugar de callbacks
+Validar inputs antes de procesarlos
+Usar transacciones para operaciones multi-tabla (ventas + detalle_venta)
+Nombres descriptivos: crearVentaConDetalles() mejor que create()
+Comentar lógica compleja (especialmente algoritmo de recomendación)
+Commits atómicos: "feat: add reserva service" no "updates"
+
+Evitar
+
+❌ Hardcodear valores (usar variables de entorno/const
+RetryClaude does not have the ability to run the code it generates yet.JContinueants)
+
+❌ Console.log en producción (usar Winston logger)
+❌ Queries N+1 (usar include de Sequelize correctamente)
+❌ Exponer stack traces al cliente (solo en desarrollo)
+❌ Usar SELECT * (especificar campos necesarios)
+❌ Olvidar cerrar conexiones DB
+❌ Ignorar warnings de npm audit
+
+Convenciones de Código
+javascript// Nombres de archivos: camelCase
+usuarioController.js
+
+// Nombres de clases: PascalCase
+class UsuarioService {}
+
+// Nombres de funciones: camelCase + verbos
+async crearUsuario(datos) {}
+
+// Nombres de constantes: UPPER_SNAKE_CASE
+const MAX_INTENTOS_LOGIN = 5;
+
+// Variables: camelCase + descriptivos
+const usuarioAutenticado = await authService.login();
+
+// Imports: agrupados y ordenados
+// 1. Externos
+const express = require('express');
+const jwt = require('jsonwebtoken');
+
+// 2. Internos
+const Usuario = require('../models/Usuario');
+const authService = require('../services/authService');
+
+// Estructura de funciones async
+async function crearVenta(datos) {
+  try {
+    // 1. Validaciones
+    if (!datos.id_cliente) {
+      throw new ValidationError('Cliente requerido');
+    }
+    
+    // 2. Lógica de negocio
+    const venta = await ventaService.crear(datos);
+    
+    // 3. Respuesta
+    return venta;
+  } catch (error) {
+    // 4. Manejo de errores
+    logger.error('Error creando venta:', error);
+    throw error;
+  }
+}
+Estructura de Respuestas API
+javascript// Success (2xx)
+{
+  "success": true,
+  "data": {
+    // Datos solicitados
+  },
+  "message": "Operación exitosa" // Opcional
+}
+
+// Error (4xx, 5xx)
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Mensaje descriptivo para el usuario",
+    "details": [] // Opcional, para errores de validación múltiples
+  }
+}
+
+// Paginación
+{
+  "success": true,
+  "data": [...],
+  "pagination": {
+    "page": 1,
+    "limit": 20,
+    "total": 100,
+    "totalPages": 5
+  }
+}
+
+10. PREGUNTAS DE CLARIFICACIÓN (Para resolver antes de iniciar)
+Sobre Reservas
+❓ P1: ¿Cuál es el tiempo límite exacto para confirmar reservas?
+Sugerencia: 15 minutos (común en sistemas de ticketing)
+❓ P2: ¿Qué pasa si múltiples usuarios intentan reservar la misma silla simultáneamente?
+Solución propuesta: Usar transacciones SQL con FOR UPDATE para bloqueo optimista
+❓ P3: ¿Las reservas expiradas se eliminan automáticamente o manualmente?
+Solución propuesta: Cron job cada 5 minutos que limpia reservas expiradas
+Sobre Descuentos
+❓ P4: ¿Los descuentos son acumulables? ¿Hay un máximo?
+Sugerencia: Acumulables hasta 40% máximo
+❓ P5: ¿Qué descuentos específicos aplicar?
+Propuesta:
+
+VIP: 20%
+Matinée (antes 3 PM): 15%
+Martes/Miércoles: 10%
+Estudiantes: 10% (requiere validación)
+
+Sobre Chatbot
+❓ P6: ¿Qué nivel de "inteligencia" se espera del chatbot?
+Alcance propuesto:
+
+Básico: Pattern matching + keywords
+Medio: NLP con natural.js + scoring de recomendaciones
+Avanzado: Integración con OpenAI API (requiere costo)
+
+Recomendación para este proyecto: Nivel medio
+❓ P7: ¿El chatbot debe mantener contexto conversacional?
+Solución propuesta: Guardar últimos 5 mensajes por sesión en memoria (Redis opcional)
+Sobre Sillas y Salas
+❓ P8: ¿Todas las salas tienen la misma estructura (2 bloques × 13 filas × 10 sillas)?
+Según documento: Sí, pero permitir flexibilidad en modelo para futuro
+❓ P9: ¿Existen sillas VIP con precio diferente?
+Propuesta: Sí, sillas tipo VIP (campo en tabla Sillas) con 30% sobreprecio
+Sobre Seguridad
+❓ P10: ¿Los clientes deben registrarse o pueden comprar como invitados?
+Solución propuesta:
+
+Invitados pueden comprar (crear Cliente temporal sin email)
+Registrados tienen historial y recomendaciones
+
+
+11. CHECKLIST DE VERIFICACIÓN FINAL
+Pre-Entrega
+
+ Código
+
+ Sin console.logs en código de producción
+ Sin TODOs pendientes críticos
+ ESLint pasa sin errores
+ Sin dependencias no utilizadas
+ Variables de entorno documentadas en .env.example
+
+
+ Tests
+
+ Suite completa pasa: npm test
+ Cobertura >80%: npm run test:coverage
+ Tests E2E simulan flujos reales
+ Sin tests skipped (.skip())
+
+
+ Base de Datos
+
+ Sistema_de_salas.sql actualizado
+ Seeders crean datos iniciales correctamente
+ Índices creados en tablas críticas
+ Constraints y foreign keys funcionan
+
+
+ Seguridad
+
+ No hay vulnerabilidades críticas: npm audit
+ JWT secret es fuerte (>32 caracteres aleatorios)
+ Contraseñas hasheadas con bcrypt (rounds: 10)
+ Rate limiting configurado
+ CORS configurado correctamente
+ Helmet activo
+
+
+ Documentación
+
+ README.md completo
+ Swagger/OpenAPI accesible en /api-docs
+ DEPLOYMENT.md con instrucciones claras
+ DATABASE.md con diccionario de datos
+ Comentarios en código complejo
+
+
+ Funcionalidad
+
+ Login funciona (Admin y Cajero)
+ CRUD de películas completo
+ CRUD de cajeros completo
+ CRUD de clientes completo
+ Reservas con tiempo límite funcionan
+ Ventas directas funcionan
+ Tickets PDF se generan correctamente
+ Reportes muestran datos correctos
+ Chatbot da recomendaciones
+ Log de usuarios registra acciones
+
+
+ Despliegue
+
+ Servidor corre en Railway/Render/Heroku
+ MySQL accesible desde servidor
+ Variables de entorno configuradas en producción
+ URL pública funcional
+ Health check responde: GET /health
+ SSL/HTTPS activo
+
+
+ Entregables
+
+ Código fuente en .zip (sin node_modules)
+ Video tutorial 10-15 min grabado
+ Diseño de BD (sistema_de_salas.sql)
+ Diccionario de datos (DATABASE.md)
+ README con instrucciones de instalación
+
+
+
+
+12. RECURSOS Y REFERENCIAS
+Documentación Oficial
+
+Node.js: https://nodejs.org/docs
+Express.js: https://expressjs.com/
+Sequelize: https://sequelize.org/docs/v6/
+MySQL: https://dev.mysql.com/doc/
+JWT: https://jwt.io/introduction
+Jest: https://jestjs.io/docs/getting-started
+Supertest: https://github.com/visionmedia/supertest
+
+Librerías Recomendadas
+json{
+  "dependencies": {
+    "express": "^4.18.2",
+    "sequelize": "^6.35.0",
+    "mysql2": "^3.6.5",
+    "dotenv": "^16.3.1",
+    "bcryptjs": "^2.4.3",
+    "jsonwebtoken": "^9.0.2",
+    "cors": "^2.8.5",
+    "helmet": "^7.1.0",
+    "express-rate-limit": "^7.1.5",
+    "joi": "^17.11.0",
+    "winston": "^3.11.0",
+    "pdfkit": "^0.14.0",
+    "qrcode": "^1.5.3",
+    "natural": "^6.10.4",
+    "node-cache": "^5.1.2",
+    "node-cron": "^3.0.3"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "supertest": "^6.3.3",
+    "eslint": "^8.55.0",
+    "nodemon": "^3.0.2",
+    "@faker-js/faker": "^8.3.1"
+  }
+}
+Tutoriales Útiles
+
+Sequelize + MySQL: https://sequelize.org/docs/v6/getting-started/
+JWT Authentication: https://www.digitalocean.com/community/tutorials/nodejs-jwt-expressjs
+Testing con Jest: https://jestjs.io/docs/tutorial-async
+PDF Generation: https://pdfkit.org/docs/getting_started.html
+NLP with Natural: https://github.com/NaturalNode/natural
+
+Herramientas de Desarrollo
+
+Postman: Testing manual de APIs
+DB Browser: MySQL Workbench, DBeaver
+Git GUI: GitKraken, SourceTree
+Monitoring: PM2, New Relic (free tier)
+Error Tracking: Sentry (free tier)
+
+
+13. EXTENSIONES FUTURAS (Opcional - Post MVP)
+Mejoras de Corto Plazo
+
+WebSockets para actualización en tiempo real
+
+Ver disponibilidad de sillas actualizarse en vivo
+Notificaciones push cuando reserva está por expirar
+
+
+Sistema de puntos de fidelidad
+
+Acumular puntos por compras
+Canjear por descuentos
+
+
+Integración con pasarelas de pago
+
+Stripe, PayPal, MercadoPago
+Pagos con tarjeta online
+
+
+Notificaciones por email/SMS
+
+Confirmación de compra
+Recordatorio de función (24h antes)
+Alertas de películas nuevas
+
+
+App móvil nativa
+
+React Native o Flutter
+Código QR en ticket para validación
+
+
+
+Mejoras de Mediano Plazo
+
+Dashboard analítico avanzado
+
+Gráficos de ventas en tiempo real
+Predicción de demanda (ML básico)
+Heatmap de sillas más populares
+
+
+Sistema de reseñas
+
+Clientes califican películas
+Mejora recomendaciones del chatbot
+
+
+Múltiples cines
+
+Multi-tenancy
+Geolocalización para sugerir cine más cercano
+
+
+Integración con APIs de películas
+
+TMDb API para metadata (posters, trailers)
+Ratings de IMDb/Rotten Tomatoes
+
+
+Sistema de combos
+
+Combos de comida (palomitas + bebida)
+Paquetes familiares
+
+
+
+Mejoras de Largo Plazo
+
+Chatbot con IA avanzada
+
+Integración con GPT-4 para conversación natural
+Reconocimiento de voz
+
+
+Reconocimiento facial
+
+Validación de identidad para clientes VIP
+Check-in automático
+
+
+Asientos inteligentes
+
+Recomendación de mejores asientos según preferencias
+Vista previa 3D de la sala
+
+
+
+
+14. GLOSARIO DE TÉRMINOS
+TérminoDefiniciónAPI RESTInterfaz de programación que usa HTTP para comunicación cliente-servidorJWTJSON Web Token - estándar para tokens de autenticaciónORMObject-Relational Mapping - mapeo de objetos a tablas de BDMiddlewareFunción que procesa requests antes de llegar al controllerSeederScript que puebla la BD con datos inicialesMockObjeto simulado para testingEndpointURL específica de una API (ej. /api/peliculas)CRUDCreate, Read, Update, Delete - operaciones básicas de BDTransacciónConjunto de operaciones BD que se ejecutan como unidad atómicaRate LimitingLimitar número de requests por tiempo para prevenir abusoSoft DeleteMarcar registro como eliminado sin borrarlo físicamenteMigrationScript para modificar estructura de BDÍndiceEstructura de BD para acelerar búsquedasPool de conexionesConjunto reutilizable de conexiones a BDPayloadDatos contenidos en un JWT o requestHashFunción unidireccional para proteger contraseñasSaltDato aleatorio agregado antes de hashearCORSCross-Origin Resource Sharing - control de acceso entre dominiosN+1 Query ProblemAnti-patrón donde se hacen muchas queries innecesariasDTOData Transfer Object - objeto para transferir datosSanitizaciónLimpiar inputs para prevenir ataques
+
+15. CONTACTO Y SOPORTE
+Para el Agente de Programación
+Si durante la implementación encuentras:
+
+Ambigüedades en el plan: Tomar decisión razonable y documentarla
+Errores en las dependencias: Actualizar versiones compatibles
+Tests que fallan: Revisar lógica antes de modificar test
+Performance issues: Implementar caché o optimizar query primero
+
+Recursos de Ayuda
+
+Documentación Sequelize: Para dudas de queries complejas
+Stack Overflow: Para errores específicos
+GitHub Issues: Revisar issues de librerías usadas
+MDN Web Docs: Para JavaScript/Node.js
+
+Debugging Tips
+javascript// 1. Logging estructurado
+logger.debug('Iniciando venta', { id_cliente, id_funcion });
+
+// 2. Try-catch en operaciones críticas
+try {
+  await transaction.commit();
+} catch (error) {
+  await transaction.rollback();
+  throw error;
+}
+
+// 3. Validaciones early return
+if (!usuario) {
+  return res.status(404).json({ error: 'Usuario no encontrado' });
+}
+
+// 4. Console.time para medir performance
+console.time('query-ventas');
+const ventas = await Venta.findAll();
+console.timeEnd('query-ventas');
+
+RESUMEN EJECUTIVO
+Este plan de trabajo detalla el desarrollo completo de un backend robusto para un sistema de gestión de salas de cine, cumpliendo con todos los requisitos del proyecto académico:
+✅ Cobertura Total de Requisitos
+
+11 fases estructuradas secuencialmente (91-116 horas estimadas)
+9 módulos funcionales completos
+Testing exhaustivo en cada fase (>80% cobertura)
+Documentación completa (Swagger, README, guías)
+Despliegue en nube con múltiples opciones
+
+🎯 Características Destacadas
+
+Sistema de reservas con tiempo límite (15 min)
+Ventas irreversibles con generación de tickets PDF
+Chatbot con IA para recomendaciones personalizadas
+Sistema de descuentos dinámico y configurable
+Reportes avanzados exportables a PDF
+Log automático de acciones de usuarios
+Seguridad robusta (JWT, bcrypt, rate limiting)
+
+🔧 Stack Tecnológico
+
+Backend: Node.js + Express.js
+Base de Datos: MySQL 8.0 (Docker)
+ORM: Sequelize
+Testing: Jest + Supertest
+Documentación: Swagger/OpenAPI
+Despliegue: Railway/Render/Heroku
+
+📦 Entregables Finales
+
+Código fuente completo y funcional
+Suite de tests con cobertura >80%
+Documentación técnica exhaustiva
+API desplegada y accesible públicamente
+Video tutorial demostrativo (10-15 min)
+Diccionario de datos completo
+Guías de instalación y despliegue
+
+⏱️ Distribución por Cortes
+
+Corte 1: Setup + Modelos + Auth (20-26h)
+Corte 2: CRUDs Administrativos (27-43h)
+Corte 3: Ventas + Reportes + IA + Deploy (44-47h)
+
+
+🚀 SIGUIENTE PASO
+Agente de Programación: Comenzar con Fase 1 - Tarea 1.1 (Inicialización del Proyecto).
+Crear la estructura base del proyecto, instalar dependencias y configurar Git. Una vez completada, proceder con Tarea 1.2 (Configuración de Base de Datos).
+Recuerda: Ejecutar tests después de cada tarea relevante y documentar cualquier decisión técnica importante.
+¡Éxito en la implementación! 🎬🎥
