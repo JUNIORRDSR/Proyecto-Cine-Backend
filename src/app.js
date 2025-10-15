@@ -84,7 +84,10 @@ const startServer = async () => {
     return server;
   } catch (error) {
     logger.error('Failed to start server:', error);
-    process.exit(1);
+    if (process.env.NODE_ENV !== 'test') {
+      process.exit(1);
+    }
+    throw error;
   }
 };
 
