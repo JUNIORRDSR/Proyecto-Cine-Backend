@@ -1,12 +1,17 @@
 require('dotenv').config();
 const express = require('express');
+const compression = require('compression');
 const { testConnection } = require('./config/database');
+const { connectRedis } = require('./config/redis');
 const configureServer = require('./config/server');
 const { errorHandler, notFoundHandler } = require('./middlewares/errorHandler');
 const logger = require('./utils/logger');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// Enable HTTP compression
+app.use(compression());
 
 // Configure server middleware
 configureServer(app);
@@ -53,6 +58,9 @@ const startServer = async () => {
       logger.error('Failed to connect to database. Server will not start.');
       process.exit(1);
     }
+
+    // Connect to Redis (optional - no falla si no está disponible)
+    await connectRedis();
 
     // Start listening
     const server = app.listen(PORT, () => {

@@ -57,6 +57,24 @@ const Funcion = sequelize.define('Funciones', {
 }, {
   tableName: 'Funciones',
   timestamps: false,
+  indexes: [
+    {
+      name: 'idx_funcion_fecha_hora',
+      fields: ['fecha', 'hora']
+    },
+    {
+      name: 'idx_funcion_pelicula',
+      fields: ['id_pelicula']
+    },
+    {
+      name: 'idx_funcion_sala',
+      fields: ['id_sala']
+    },
+    {
+      name: 'idx_funcion_sala_fecha',
+      fields: ['id_sala', 'fecha']
+    }
+  ]
 });
 
 module.exports = Funcion;

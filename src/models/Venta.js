@@ -57,6 +57,32 @@ const Venta = sequelize.define('Ventas', {
 }, {
   tableName: 'Ventas',
   timestamps: false,
+  indexes: [
+    {
+      name: 'idx_venta_cliente',
+      fields: ['id_cliente']
+    },
+    {
+      name: 'idx_venta_usuario',
+      fields: ['id_usuario']
+    },
+    {
+      name: 'idx_venta_fecha',
+      fields: ['fecha_venta']
+    },
+    {
+      name: 'idx_venta_estado',
+      fields: ['estado']
+    },
+    {
+      name: 'idx_venta_fecha_estado',
+      fields: ['fecha_venta', 'estado']
+    },
+    {
+      name: 'idx_venta_expiracion',
+      fields: ['fecha_expiracion_reserva']
+    }
+  ]
 });
 
 module.exports = Venta;
