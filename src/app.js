@@ -56,7 +56,10 @@ const startServer = async () => {
     
     if (!isConnected) {
       logger.error('Failed to connect to database. Server will not start.');
-      process.exit(1);
+      if (process.env.NODE_ENV !== 'test') {
+        process.exit(1);
+      }
+      throw new Error('Database connection failed');
     }
 
     // Connect to Redis (optional - no falla si no está disponible)

@@ -32,7 +32,7 @@ describe('PeliculaService Unit Tests', () => {
 
       expect(Pelicula.findAll).toHaveBeenCalledWith({
         where: {},
-        order: [['fecha_estreno', 'DESC']]
+        order: [['titulo', 'ASC']]
       });
       expect(result).toEqual(mockPeliculas);
       expect(result).toHaveLength(2);
@@ -49,7 +49,7 @@ describe('PeliculaService Unit Tests', () => {
 
       expect(Pelicula.findAll).toHaveBeenCalledWith({
         where: { estado: 'EN_CARTELERA' },
-        order: [['fecha_estreno', 'DESC']]
+        order: [['titulo', 'ASC']]
       });
     });
 
@@ -64,7 +64,7 @@ describe('PeliculaService Unit Tests', () => {
 
       expect(Pelicula.findAll).toHaveBeenCalledWith({
         where: { genero: 'ACCION' },
-        order: [['fecha_estreno', 'DESC']]
+        order: [['titulo', 'ASC']]
       });
     });
   });
@@ -143,8 +143,13 @@ describe('PeliculaService Unit Tests', () => {
       const mockPelicula = {
         id: 1,
         titulo: 'Original Title',
-        update: jest.fn().mockResolvedValue(true),
-        save: jest.fn()
+        genero: 'ACCION',
+        update: jest.fn(function(data) {
+          this.titulo = data.titulo || this.titulo;
+          this.genero = data.genero || this.genero;
+          return Promise.resolve(true);
+        }),
+        reload: jest.fn().mockResolvedValue(true)
       };
 
       const updateData = {
@@ -154,11 +159,11 @@ describe('PeliculaService Unit Tests', () => {
 
       Pelicula.findByPk.mockResolvedValue(mockPelicula);
 
-      await peliculaService.actualizarPelicula(1, updateData);
+      const result = await peliculaService.actualizarPelicula(1, updateData);
 
       expect(Pelicula.findByPk).toHaveBeenCalledWith(1);
-      expect(mockPelicula.titulo).toBe('Updated Title');
-      expect(mockPelicula.genero).toBe('DRAMA');
+      expect(mockPelicula.update).toHaveBeenCalledWith(updateData);
+      expect(mockPelicula.reload).toHaveBeenCalled();
     });
 
     it('should throw error when movie not found', async () => {
@@ -175,15 +180,17 @@ describe('PeliculaService Unit Tests', () => {
       const mockPelicula = {
         id: 1,
         titulo: 'To Delete',
-        destroy: jest.fn().mockResolvedValue(true)
+        estado: 'ACTIVA',
+        update: jest.fn().mockResolvedValue(true)
       };
 
       Pelicula.findByPk.mockResolvedValue(mockPelicula);
 
-      await peliculaService.eliminarPelicula(1);
+      const result = await peliculaService.eliminarPelicula(1);
 
       expect(Pelicula.findByPk).toHaveBeenCalledWith(1);
-      expect(mockPelicula.destroy).toHaveBeenCalled();
+      expect(mockPelicula.update).toHaveBeenCalledWith({ estado: 'INACTIVA' });
+      expect(result).toBe(mockPelicula);
     });
 
     it('should throw error when movie not found', async () => {

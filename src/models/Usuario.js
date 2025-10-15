@@ -84,11 +84,11 @@ const Usuario = sequelize.define('Usuarios', {
       }
     },
   },
+  instanceMethods: {
+    validarContrasena: async function(contrasena) {
+      return await bcrypt.compare(contrasena, this.contrasena);
+    }
+  }
 });
-
-// Instance method to validate password
-Usuario.prototype.validarContrasena = async function(contrasena) {
-  return await bcrypt.compare(contrasena, this.contrasena);
-};
 
 module.exports = Usuario;

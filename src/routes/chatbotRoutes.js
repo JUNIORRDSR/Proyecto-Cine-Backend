@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const chatbotController = require('../controllers/chatbotController');
-const { authMiddleware } = require('../middlewares/authMiddleware');
+const authMiddleware = require('../middlewares/authMiddleware');
 
 /**
  * Rutas del Chatbot y Sistema de Recomendaciones
