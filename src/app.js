@@ -5,6 +5,7 @@ const { testConnection } = require('./config/database');
 const { connectRedis } = require('./config/redis');
 const configureServer = require('./config/server');
 const { errorHandler, notFoundHandler } = require('./middlewares/errorHandler');
+const { swaggerUi, swaggerSpec } = require('./config/swagger');
 const logger = require('./utils/logger');
 
 const app = express();
@@ -15,6 +16,12 @@ app.use(compression());
 
 // Configure server middleware
 configureServer(app);
+
+// Swagger Documentation
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
+  customCss: '.swagger-ui .topbar { display: none }',
+  customSiteTitle: 'Cinema API Docs',
+}));
 
 // Import routes
 const authRoutes = require('./routes/authRoutes');
