@@ -19,6 +19,7 @@ const clienteRoutes = require('./routes/clienteRoutes');
 const funcionRoutes = require('./routes/funcionRoutes');
 const reservaRoutes = require('./routes/reservaRoutes');
 const ventaRoutes = require('./routes/ventaRoutes');
+const reporteRoutes = require('./routes/reporteRoutes');
 const logMiddleware = require('./middlewares/logMiddleware');
 
 // Apply log middleware globally
@@ -32,6 +33,7 @@ app.use('/api/clientes', clienteRoutes);
 app.use('/api/funciones', funcionRoutes);
 app.use('/api/reservas', reservaRoutes);
 app.use('/api/ventas', ventaRoutes);
+app.use('/api/reportes', reporteRoutes);
 
 // 404 handler - must be after all routes
 app.use(notFoundHandler);
