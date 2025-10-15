@@ -11,10 +11,15 @@ const PORT = process.env.PORT || 3000;
 // Configure server middleware
 configureServer(app);
 
-// TODO: Import and use routes here
-// Example:
-// const authRoutes = require('./routes/authRoutes');
-// app.use('/api/auth', authRoutes);
+// Import routes
+const authRoutes = require('./routes/authRoutes');
+const logMiddleware = require('./middlewares/logMiddleware');
+
+// Apply log middleware globally
+app.use(logMiddleware);
+
+// API Routes
+app.use('/api/auth', authRoutes);
 
 // 404 handler - must be after all routes
 app.use(notFoundHandler);
