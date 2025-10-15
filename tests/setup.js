@@ -6,7 +6,7 @@ jest.setTimeout(10000);
 
 // Variables de entorno para testing
 process.env.NODE_ENV = 'test';
-process.env.DB_NAME = 'salas_cine_test';
+process.env.DB_NAME = 'salas_cine'; // Usando DB principal en Docker (entorno aislado)
 process.env.JWT_SECRET = 'test-secret-key-for-testing-purposes-only';
 
 // Mock de console para tests más limpios (opcional)
