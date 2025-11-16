@@ -8,10 +8,32 @@ const configureServer = (app) => {
   app.use(helmet());
 
   // CORS configuration
+  // Si CORS_ORIGIN está definido, usarlo; si no, usar los orígenes por defecto
+  // IMPORTANTE: No usar '*' cuando credentials: true
+  const getCorsOrigin = () => {
+    if (process.env.CORS_ORIGIN) {
+      // Si es un string con múltiples orígenes separados por coma, convertirlo a array
+      if (process.env.CORS_ORIGIN.includes(',')) {
+        return process.env.CORS_ORIGIN.split(',').map(origin => origin.trim());
+      }
+      // Si es '*', no usar credentials (solo para desarrollo)
+      if (process.env.CORS_ORIGIN === '*') {
+        return '*';
+      }
+      return process.env.CORS_ORIGIN;
+    }
+    // Orígenes por defecto para desarrollo
+    return ['http://localhost:5173', 'http://localhost:3000'];
+  };
+
+  const corsOrigin = getCorsOrigin();
+  
   const corsOptions = {
-    origin: process.env.CORS_ORIGIN || '*',
-    credentials: true,
+    origin: corsOrigin,
+    credentials: corsOrigin !== '*', // No usar credentials si origin es '*'
     optionsSuccessStatus: 200,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
   };
   app.use(cors(corsOptions));
 

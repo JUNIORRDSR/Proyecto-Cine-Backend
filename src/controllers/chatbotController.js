@@ -194,6 +194,84 @@ const obtenerGenerosFavoritos = async (req, res, next) => {
   }
 };
 
+/**
+ * Obtener disponibilidad de sillas para una función (para chatbot)
+ */
+const obtenerDisponibilidadSillas = async (req, res, next) => {
+  try {
+    const { id_funcion } = req.params;
+
+    const disponibilidad = await chatbotService.mostrarDisponibilidadSillas(
+      parseInt(id_funcion)
+    );
+
+    res.json({
+      success: true,
+      message: 'Disponibilidad obtenida exitosamente',
+      data: disponibilidad
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Obtener funciones disponibles para una película (para chatbot)
+ */
+const obtenerFuncionesPelicula = async (req, res, next) => {
+  try {
+    const { id_pelicula } = req.params;
+    const { dia, horario } = req.query;
+
+    const diaObj = dia ? { nombre: dia, valor: parseInt(dia) } : null;
+    const horarioObj = horario ? JSON.parse(horario) : null;
+
+    const funciones = await chatbotService.obtenerFuncionesParaPelicula(
+      parseInt(id_pelicula),
+      diaObj,
+      horarioObj
+    );
+
+    res.json({
+      success: true,
+      message: 'Funciones obtenidas exitosamente',
+      data: {
+        funciones,
+        cantidad: funciones.length
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Obtener recomendaciones personalizadas con preferencias
+ */
+const obtenerRecomendacionesPersonalizadas = async (req, res, next) => {
+  try {
+    const { id_cliente } = req.params;
+    const { dia, horario } = req.query;
+
+    const diaObj = dia ? { nombre: dia, valor: parseInt(dia) } : null;
+    const horarioObj = horario ? JSON.parse(horario) : null;
+
+    const recomendaciones = await chatbotService.recomendarConPreferencias(
+      parseInt(id_cliente),
+      diaObj,
+      horarioObj
+    );
+
+    res.json({
+      success: true,
+      message: 'Recomendaciones personalizadas obtenidas exitosamente',
+      data: recomendaciones
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   enviarMensaje,
   obtenerRecomendaciones,
@@ -202,5 +280,8 @@ module.exports = {
   obtenerEstrenos,
   obtenerSimilares,
   buscarPelicula,
-  obtenerGenerosFavoritos
+  obtenerGenerosFavoritos,
+  obtenerDisponibilidadSillas,
+  obtenerFuncionesPelicula,
+  obtenerRecomendacionesPersonalizadas
 };
