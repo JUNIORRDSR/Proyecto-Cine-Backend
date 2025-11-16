@@ -32,4 +32,13 @@ router.get('/estrenos', authMiddleware, chatbotController.obtenerEstrenos);
 // Películas similares
 router.get('/similares/:id_pelicula', authMiddleware, chatbotController.obtenerSimilares);
 
+// Disponibilidad de sillas para una función
+router.get('/sillas/:id_funcion', authMiddleware, chatbotController.obtenerDisponibilidadSillas);
+
+// Funciones disponibles para una película
+router.get('/funciones/:id_pelicula', authMiddleware, chatbotController.obtenerFuncionesPelicula);
+
+// Recomendaciones personalizadas con preferencias (día, horario)
+router.get('/recomendaciones-personalizadas/:id_cliente', authMiddleware, chatbotController.obtenerRecomendacionesPersonalizadas);
+
 module.exports = router;
